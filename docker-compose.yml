@@ -1,0 +1,78 @@
+services:
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # MinIO console
+    volumes:
+      - minio_data:/data
+
+  mc:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3 &&
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/egrid &&
+      mc policy set public local/egrid &&
+      mc cp --recursive /seed/ local/egrid/incoming/ || true &&
+      while true; do sleep 3600; done
+      "
+    volumes:
+      - ./sample_data:/seed:ro
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8000:8000"
+    command: -jar DynamoDBLocal.jar -sharedDb
+
+  ingest:
+    build: ./docker/ingest_app
+    depends_on:
+      - minio
+      - dynamodb
+    environment:
+      PYTHONUNBUFFERED: "1"
+      TABLE_NAME: egrid_plants
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: egrid
+      # boto3 expects AWS_* for S3/MinIO
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      # keep these too (our code falls back to them)
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      DDB_ENDPOINT: http://dynamodb:8000
+
+  api:
+    build: ./docker/api_app
+    depends_on:
+      - dynamodb
+    environment:
+      TABLE_NAME: egrid_plants
+      DDB_ENDPOINT: http://dynamodb:8000
+      # boto3 needs *some* creds even for DynamoDB Local
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+      AWS_DEFAULT_REGION: us-east-1
+    ports:
+      - "8001:8000"
+
+  frontend:
+    image: nginx:alpine
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend/index.html:/usr/share/nginx/html/index.html:ro
+
+volumes:
+  minio_data:

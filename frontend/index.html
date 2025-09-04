@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>eGRID Viewer</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; max-width: 900px; margin: 24px auto; }
+    label { display:inline-block; width:100px; }
+    input { width: 300px; }
+    .row { margin: 8px 0; }
+    pre { background:#f6f8fa; padding:12px; border-radius:8px; max-height:300px; overflow:auto; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px;}
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #fafafa; }
+    .error { color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1>eGRID Net Generation Viewer</h1>
+
+  <div class="row"><label>API URL</label>
+    <input id="api" value="http://localhost:8001" />
+  </div>
+  <div class="row"><label>State</label>
+    <input id="state" placeholder="e.g., CA" />
+  </div>
+  <div class="row"><label>Top N</label>
+    <input id="limit" type="number" value="5" />
+  </div>
+  <div class="row">
+    <button id="go">Fetch</button>
+    <span id="status"></span>
+  </div>
+
+  <div id="error" class="error"></div>
+  <pre id="json"></pre>
+  <div id="table"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    function renderTable(items) {
+      if (!items || !items.length) { $("table").innerHTML = "<em>No rows.</em>"; return; }
+      const cols = ["plant_id","plant_name","state","net_generation_mwh","balancing_authority_code"];
+      const header = "<tr>" + cols.map(c=>`<th>${c}</th>`).join("") + "</tr>";
+      const rows = items.map(it => "<tr>" + cols.map(c=>`<td>${it[c] ?? ""}</td>`).join("") + "</tr>").join("");
+      $("table").innerHTML = `<table>${header}${rows}</table>`;
+    }
+    $("go").onclick = async () => {
+      $("error").textContent = ""; $("json").textContent = ""; $("table").innerHTML = "";
+      const api = $("api").value.replace(/\/+$/,"");
+      const st = $("state").value.trim();
+      const limit = Number($("limit").value || 5);
+      const url = `${api}/top?limit=${limit}` + (st ? `&state=${encodeURIComponent(st)}` : "");
+      $("status").textContent = "Loading...";
+      console.log("Fetching:", url);
+      try {
+        const res = await fetch(url, { method: "GET" });
+        console.log("Response status:", res.status);
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          $("json").textContent = JSON.stringify(data, null, 2);
+          renderTable(data);
+        } catch (e) {
+          $("error").textContent = "Non-JSON response from API. See console.";
+          console.error("Non-JSON:", text);
+        }
+      } catch (e) {
+        $("error").textContent = "Fetch failed. See console for details.";
+        console.error(e);
+      } finally {
+        $("status").textContent = "";
+      }
+    };
+  </script>
+</body>
+</html>

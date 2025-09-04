@@ -1,0 +1,69 @@
+services:
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  mc:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3 &&
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/egrid &&
+      mc policy set public local/egrid &&
+      mc cp --recursive /seed/ local/egrid/incoming/ || true &&
+      while true; do sleep 3600; done
+      "
+    volumes:
+      - ./sample_data:/seed:ro
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8000:8000"
+    command: -jar DynamoDBLocal.jar -sharedDb
+
+  ingest:
+    build: ./docker/ingest_app
+    depends_on:
+      - minio
+      - dynamodb
+    environment:
+      TABLE_NAME: egrid_plants
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: egrid
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      DDB_ENDPOINT: http://dynamodb:8000
+
+  api:
+    build: ./docker/api_app
+    depends_on:
+      - dynamodb
+    environment:
+      TABLE_NAME: egrid_plants
+      DDB_ENDPOINT: http://dynamodb:8000
+    ports:
+      - "8001:8000"
+
+  frontend:
+    image: nginx:alpine
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend/index.html:/usr/share/nginx/html/index.html:ro
+
+volumes:
+  minio_data:

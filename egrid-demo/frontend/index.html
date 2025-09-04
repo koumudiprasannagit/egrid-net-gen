@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>eGRID Viewer</title></head>
+<body>
+  <h1>eGRID Viewer</h1>
+  <p>API URL: <input id="api" value="http://localhost:8001"></p>
+  <p>State: <input id="state" placeholder="CA"></p>
+  <p>Top N: <input id="limit" type="number" value="5"></p>
+  <button id="go">Fetch</button>
+  <pre id="out"></pre>
+  <script>
+    document.getElementById('go').onclick = async () => {
+      const api = document.getElementById('api').value.replace(/\/+$/,'')
+      const st = document.getElementById('state').value
+      const limit = document.getElementById('limit').value || 5
+      const url = api + '/top?limit=' + limit + (st ? ('&state=' + encodeURIComponent(st)) : '')
+      const res = await fetch(url)
+      const data = await res.json()
+      document.getElementById('out').textContent = JSON.stringify(data,null,2)
+    }
+  </script>
+</body>
+</html>

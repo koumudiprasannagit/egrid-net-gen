@@ -1,0 +1,7 @@
+Plant ID (ORISPL),Plant name,State abbreviation,Plant annual net generation (MWh),Balancing Authority code
+1234,Example Gas Plant,TX,14500000,ERCOT
+5678,Hoover Dam,AZ,4100000,WALC
+9101,Grand River Dam,OK,5200000,SPP
+1213,Palo Verde Nuclear,AZ,31000000,AZPS
+1415,Diablo Canyon,CA,18600000,CISO
+1617,Vogtle,GA,22000000,SOCO
