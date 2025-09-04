@@ -5,7 +5,7 @@ It can run locally using Docker Compose .
 
 ---
 
-## 🚀 Features
+##  Features
 
 - **CSV ingestion** from an S3-compatible bucket (MinIO locally)
 - **Transformation & storage** into DynamoDB
@@ -19,7 +19,7 @@ It can run locally using Docker Compose .
 
 ---
 
-## 🛠️ Local Setup (Docker Compose)
+##  Local Setup (Docker Compose)
 
 ### Prerequisites
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) (with WSL2 backend)
@@ -54,3 +54,51 @@ FastAPI → modern, async-friendly REST framework
 DynamoDB → scalable, serverless NoSQL store
 MinIO → local S3-compatible storage
 Docker Compose → simple local orchestration
+
+
+
+##  Cloud Deployment with AWS & Terraform
+
+In addition to running locally with Docker Compose, this project can be deployed to **AWS** using **Terraform**.
+
+###  Architecture
+- **Amazon S3** → Stores raw CSV files (incoming/processed).  
+- **AWS Lambda (Ingest)** → Triggered on S3 upload, parses CSV, writes to DynamoDB.  
+- **Amazon DynamoDB** → Stores normalized plant data.  
+- **AWS Lambda (API)** → Serves queries (`top N`, filter by state).  
+- **Amazon API Gateway** → Exposes the API Lambda via HTTPS.  
+- **Amazon CloudFront** → Hosts the static frontend (HTML/JS).  
+
+### 🛠️ Prerequisites
+- [Terraform](https://developer.hashicorp.com/terraform/downloads) v1.0+  
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) configured with IAM user credentials:
+  ```bash
+  aws configure
+
+### Terraform Setup
+cd infra/aws
+terraform init
+terraform plan
+terraform apply
+
+### Outputs
+
+After apply, Terraform will show outputs:
+
+api_invoke_url = "https://xxxx.execute-api.us-east-1.amazonaws.com"
+bucket_name    = "egrid-bucket-xxxxx"
+dynamodb_table = "egrid_plants"
+cloudfront_url = "https://dxxxxx.cloudfront.net"
+
+
+Upload CSV → S3 bucket (incoming/ path).
+
+Lambda ingests → DynamoDB.
+
+Access UI via CloudFront URL.
+
+UI connects to the API Gateway endpoint.
+
+### Cleanup
+cd infra/aws
+terraform destroy
