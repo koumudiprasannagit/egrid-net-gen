@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>eGRID Net Generation Viewer</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:2rem;max-width:900px}
+    h1{margin:0 0 1rem}
+    .row{display:flex;gap:12px;flex-wrap:wrap;margin:.75rem 0}
+    input,button{padding:.6rem .8rem;font-size:1rem}
+    input{border:1px solid #ccc;border-radius:8px}
+    button{border:0;background:#111;color:#fff;border-radius:8px;cursor:pointer}
+    pre{background:#f6f8fa;border:1px solid #eee;border-radius:8px;padding:12px;overflow:auto}
+    table{width:100%;border-collapse:collapse;margin-top:1rem}
+    th,td{border:1px solid #e5e7eb;padding:.6rem;text-align:left}
+    th{background:#f3f4f6}
+  </style>
+</head>
+<body>
+  <h1>eGRID Net Generation Viewer</h1>
+
+  <div class="row">
+    <label>API URL&nbsp;
+      <!-- Terraform will replace __API__ with your API endpoint -->
+      <input id="api" size="60" value="__API__">
+    </label>
+  </div>
+
+  <div class="row">
+    <label>State&nbsp;<input id="state" value="CA" maxlength="2" style="width:70px"></label>
+    <label>Top N&nbsp;<input id="limit" value="5" type="number" min="1" step="1" style="width:90px"></label>
+    <button id="fetch">Fetch</button>
+  </div>
+
+  <pre id="out"></pre>
+
+  <table id="tbl" hidden>
+    <thead>
+      <tr>
+        <th>plant_id</th><th>plant_name</th><th>state</th>
+        <th>net_generation_mwh</th><th>balancing_authority_code</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+async function run(){
+  var base  = document.getElementById('api').value.replace(/\/$/, '');
+  var state = document.getElementById('state').value.toUpperCase();
+  var limit = document.getElementById('limit').value || 5;
+
+  var url = base + "/top?limit=" + encodeURIComponent(limit) +
+            "&state=" + encodeURIComponent(state);
+
+  var out = document.getElementById('out');
+  var tbl = document.getElementById('tbl');
+  out.textContent = 'Loading...';
+  tbl.hidden = true;
+
+  try{
+    var r = await fetch(url, { headers: { 'Accept':'application/json' }});
+    var data = await r.json();
+    out.textContent = JSON.stringify(data, null, 2);
+
+    var tbody = tbl.querySelector('tbody'); tbody.innerHTML = '';
+    (data || []).forEach(function(row){
+      var tr = document.createElement('tr');
+      ['plant_id','plant_name','state','net_generation_mwh','balancing_authority_code'].forEach(function(k){
+        var td = document.createElement('td');
+        td.textContent = (row[k] !== undefined && row[k] !== null) ? row[k] : '';
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    tbl.hidden = false;
+  }catch(e){
+    out.textContent = 'Error: ' + e;
+  }
+}
+document.getElementById('fetch').addEventListener('click', run);
+</script>
+</body>
+</html>
